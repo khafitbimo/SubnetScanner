@@ -13,6 +13,7 @@ namespace SubnetScanner
     public interface ISubnetScan
     {
         List<HostModel> ScanSubnet(string subnet, int timeout);
+        HostModel ScanIP(string ipString, int timeout);
     }
     public class SubnetScan : ISubnetScan
     {
@@ -32,6 +33,53 @@ namespace SubnetScanner
         {
             string macString = BitConverter.ToString(macAdrr);
             return macString.ToUpper();
+        }
+
+        public HostModel ScanIP(string ipString, int timeout)
+        {
+            HostModel retModel = new HostModel();
+
+            Ping myPing;
+            PingReply reply;
+            IPAddress address;
+            byte[] macAddr = new byte[6];
+
+            IPHostEntry host;
+
+            myPing = new Ping();
+            reply = myPing.Send(ipString, timeout);
+
+            if (reply.Status == IPStatus.Success)
+            {
+                try
+                {
+
+                    address = IPAddress.Parse(ipString);
+                    host = Dns.GetHostEntry(address);
+
+                    retModel.IP_ADDRESS = ipString;
+                    retModel.HOSTNAME = host.HostName;
+                    retModel.STATUS = "Up";
+
+                    SendARP((int)BitConverter.ToInt32(address.GetAddressBytes(), 0), 0, macAddr, ref macAddrLen);
+                    if (MacAddresstoString(macAddr) != "00-00-00-00-00-00")
+                    {
+                        string macString = MacAddresstoString(macAddr);
+                        retModel.MAC_ADDRESS = macString;
+                        retModel.INTERFACE = GetDeviceInfoFromMac(macString);
+
+                    }
+                }
+                catch (Exception)
+                {
+
+                }
+
+                return retModel;
+            }
+
+            retModel = null;
+            return retModel;
         }
 
         public List<HostModel> ScanSubnet(string subnet,int timeout)
@@ -108,6 +156,7 @@ namespace SubnetScanner
             }
             return "Unknown";
         }
+
 
         private bool LoadMacListFromFile(string path)
         {
